@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>To-Do Groups</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="app-container">
+    <h1>To-Do Groups App</h1>
+
+    <section id="standard-section">
+      <div class="section-title">
+        <h2>Standard Tasks</h2>
+        <p class="section-subtitle">Organize your non-periodic to-dos by category for a clearer overview.</p>
+      </div>
+      <div class="form-row stack-on-small">
+        <label for="new-category-name">New Category:</label>
+        <input type="text" id="new-category-name" placeholder="e.g., Home, Work, Errands" />
+        <button id="add-category-btn">Add Category</button>
+      </div>
+      <div id="category-grid" class="category-grid"></div>
+    </section>
+
+    <section id="group-section">
+      <div class="section-title">
+        <h2>Groups</h2>
+        <p class="section-subtitle">Define recurring task groups with their own cadence.</p>
+      </div>
+      <div class="form-row">
+        <label for="group-name">Name:</label>
+        <input type="text" id="group-name" placeholder="e.g., Morning Routine" />
+      </div>
+      <div class="form-row">
+        <label for="group-start">Start time:</label>
+        <input type="time" id="group-start" />
+      </div>
+      <div class="form-row">
+        <label>Duration:</label>
+        <input type="number" id="group-duration-days" min="0" placeholder="Days" />
+        <input type="number" id="group-duration-hours" min="0" max="23" placeholder="Hours" />
+        <input type="number" id="group-duration-minutes" min="0" max="59" placeholder="Minutes" />
+      </div>
+      <button id="add-group-btn">Add Group</button>
+      <div id="groups"></div>
+    </section>
+
+    <section id="clear-data-section">
+      <div class="section-title">
+        <h2>Data Management</h2>
+        <p class="section-subtitle">Need a fresh start? Clear all stored tasks and schedules.</p>
+      </div>
+      <button id="clear-data-btn">Clear All Data</button>
+    </section>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>

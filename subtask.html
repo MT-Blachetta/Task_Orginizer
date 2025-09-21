@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Edit Subtasks</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="app-container" class="subtask-page">
+    <section class="subtask-section">
+      <h1 id="subtask-header"></h1>
+      <div class="form-row stack-on-small subtask-form">
+        <input type="text" id="new-subtask-text" placeholder="New subtask text" aria-label="New subtask text" />
+        <button id="add-subtask-btn" class="secondary-button">Add Subtask</button>
+      </div>
+      <ul id="subtask-list" class="category-task-list"></ul>
+      <a href="index.html" class="back-link">← Back to main list</a>
+    </section>
+  </div>
+
+  <script src="subtask.js"></script>
+</body>
+</html>

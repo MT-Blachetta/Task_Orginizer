@@ -8,6 +8,13 @@
 </head>
 <body>
   <div id="app-container">
+    <div id="connection-bar">
+      <div class="connection-status" role="status" aria-live="polite">
+        <span class="status-indicator" id="connection-indicator"></span>
+        <span id="connection-status">Not connected</span>
+      </div>
+      <button id="connect-btn" class="secondary-button">Connect</button>
+    </div>
     <h1>To-Do Groups App</h1>
 
     <section id="standard-section">
@@ -53,6 +60,27 @@
       </div>
       <button id="clear-data-btn">Clear All Data</button>
     </section>
+  </div>
+
+  <div id="connection-modal" class="connection-modal hidden" role="dialog" aria-modal="true" aria-labelledby="connection-modal-title">
+    <div class="connection-modal-content">
+      <h2 id="connection-modal-title">Connect to backend</h2>
+      <form id="connection-form" class="connection-form">
+        <label for="connection-host">Host or URL</label>
+        <input type="text" id="connection-host" placeholder="e.g., 192.168.0.10 or backend.example.com" autocomplete="off" required />
+
+        <label for="connection-port">Port</label>
+        <input type="number" id="connection-port" min="1" max="65535" placeholder="3001" autocomplete="off" />
+
+        <p class="connection-help">If you provide a full URL (including http or https), the port field is optional.</p>
+
+        <div class="connection-actions">
+          <button type="submit">OK</button>
+          <button type="button" id="connection-cancel-btn" class="secondary-button">Cancel</button>
+        </div>
+        <p id="connection-message" class="connection-message" role="alert"></p>
+      </form>
+    </div>
   </div>
 
   <script src="script.js"></script>

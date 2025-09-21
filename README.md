@@ -1,10 +1,24 @@
 # toDo_Groups
 
-Simple in-browser To-Do application that supports single tasks and task groups with repeating periods.
+Task management application for personal use. The frontend works in any modern browser and can connect to a lightweight Python backend that stores tasks in a persistent SQLite database.
+
+## Backend API
+
+Run the backend before connecting from the web app:
+
+```bash
+python backend/app.py
+```
+
+The server listens on port `3001` by default (override with the `PORT` environment variable). All data is stored in `backend/database.sqlite`.
 
 ## Usage
 
-Open `index.html` in any modern web browser. Tasks and groups are stored in `localStorage` so they persist across reloads.
+1. Open `index.html` in your browser.
+2. Click **Connect** and enter the backend host/IP and port (for example `localhost` and `3001`).
+3. After connecting, tasks and groups are stored on the backend. If the connection fails, changes are stored locally and you can retry later.
+
+Without a backend the app still works using `localStorage`, but data will remain on the current device only.
 
 ### Standard Tasks
 - Add a text in the input field and click **Add Task**.

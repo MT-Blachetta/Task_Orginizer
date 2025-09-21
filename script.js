@@ -10,8 +10,20 @@ const groupDurationMinutesInput = document.getElementById('group-duration-minute
 const addGroupBtn = document.getElementById('add-group-btn');
 const groupsDiv = document.getElementById('groups');
 const clearDataBtn = document.getElementById('clear-data-btn'); // New: Clear Data Button
+const connectBtn = document.getElementById('connect-btn');
+const connectionModal = document.getElementById('connection-modal');
+const connectionForm = document.getElementById('connection-form');
+const connectionHostInput = document.getElementById('connection-host');
+const connectionPortInput = document.getElementById('connection-port');
+const connectionCancelBtn = document.getElementById('connection-cancel-btn');
+const connectionMessage = document.getElementById('connection-message');
+const connectionStatusText = document.getElementById('connection-status');
+const statusIndicator = document.getElementById('connection-indicator');
 
 let data = { standard: [], groups: [] };
+let backendBaseUrl = null;
+let isConnected = false;
+let syncQueue = Promise.resolve();
 
 function generateId() {
   return Date.now().toString(36) + Math.random().toString(36).substr(2);
@@ -65,15 +77,7 @@ function ensureStandardCategories() {
   });
 }
 
-function saveData() {
-  localStorage.setItem('todo-data', JSON.stringify(data));
-}
-
-function loadData() {
-  const saved = localStorage.getItem('todo-data');
-  if (saved) {
-    data = JSON.parse(saved);
-  }
+function normaliseData() {
   ensureStandardCategories();
   if (!Array.isArray(data.groups)) {
     data.groups = [];
@@ -91,7 +95,177 @@ function loadData() {
     }
     patchTasks(g.tasks);
   });
-  saveData();
+}
+
+function saveLocalData() {
+  localStorage.setItem('todo-data', JSON.stringify(data));
+}
+
+function updateConnectionStatus(state, message) {
+  if (typeof message === 'string') {
+    connectionStatusText.textContent = message;
+  }
+  connectionStatusText.classList.toggle('error', state === 'error');
+  statusIndicator.classList.toggle('connected', state === 'connected');
+  statusIndicator.classList.toggle('error', state === 'error');
+}
+
+function queueBackendSync() {
+  if (!isConnected || !backendBaseUrl) {
+    return;
+  }
+  syncQueue = syncQueue.catch(() => {}).then(async () => {
+    try {
+      const response = await fetch(`${backendBaseUrl}/data`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      if (!response.ok) {
+        throw new Error(`Sync failed with status ${response.status}`);
+      }
+      updateConnectionStatus('connected', `Connected to ${backendBaseUrl}`);
+    } catch (error) {
+      console.error('Failed to sync with backend', error);
+      updateConnectionStatus('error', 'Sync failed - data stored locally');
+    }
+  });
+}
+
+function saveData() {
+  saveLocalData();
+  queueBackendSync();
+}
+
+function loadLocalData() {
+  const saved = localStorage.getItem('todo-data');
+  if (saved) {
+    try {
+      data = JSON.parse(saved);
+    } catch (error) {
+      console.error('Failed to parse local data, resetting.', error);
+      data = { standard: [], groups: [] };
+    }
+  } else {
+    data = { standard: [], groups: [] };
+  }
+  normaliseData();
+  saveLocalData();
+}
+
+function refreshConnectButton() {
+  if (connectBtn) {
+    connectBtn.textContent = isConnected ? 'Reconnect' : 'Connect';
+  }
+}
+
+function cleanBaseUrl(url) {
+  return url.replace(/\/+$/, '');
+}
+
+async function connectToBackend(baseUrl, { remember = true } = {}) {
+  const normalised = cleanBaseUrl(baseUrl);
+  const response = await fetch(`${normalised}/data`);
+  if (!response.ok) {
+    throw new Error(`Connection failed with status ${response.status}`);
+  }
+  const payload = await response.json();
+  data = payload || { standard: [], groups: [] };
+  normaliseData();
+  backendBaseUrl = normalised;
+  isConnected = true;
+  syncQueue = Promise.resolve();
+  if (remember) {
+    localStorage.setItem('backend-url', normalised);
+  }
+  saveLocalData();
+  updateConnectionStatus('connected', `Connected to ${normalised}`);
+  refreshConnectButton();
+}
+
+function buildBaseUrl(hostValue, portValue) {
+  const trimmedHost = hostValue.trim();
+  if (!trimmedHost) {
+    throw new Error('Please provide a host name, IP address or URL.');
+  }
+
+  if (/^https?:\/\//i.test(trimmedHost)) {
+    try {
+      const url = new URL(trimmedHost);
+      return url.origin;
+    } catch (error) {
+      throw new Error('The provided URL is not valid.');
+    }
+  }
+
+  if (/^[^:]+:\/\//.test(trimmedHost)) {
+    throw new Error('Only http and https protocols are supported.');
+  }
+
+  const hostWithoutTrailing = trimmedHost.replace(/\/+$/, '');
+  let resolvedPort = portValue.trim();
+
+  if (!resolvedPort) {
+    const colonIndex = hostWithoutTrailing.lastIndexOf(':');
+    if (colonIndex > -1) {
+      const portCandidate = hostWithoutTrailing.slice(colonIndex + 1);
+      if (/^\d+$/.test(portCandidate)) {
+        return `http://${hostWithoutTrailing}`;
+      }
+    }
+    throw new Error('Please provide a port number.');
+  }
+
+  const portNumber = Number(resolvedPort);
+  if (!Number.isInteger(portNumber) || portNumber < 1 || portNumber > 65535) {
+    throw new Error('Port must be a number between 1 and 65535.');
+  }
+
+  return `http://${hostWithoutTrailing}:${portNumber}`;
+}
+
+async function attemptInitialConnection() {
+  const storedUrl = localStorage.getItem('backend-url');
+  if (storedUrl) {
+    try {
+      await connectToBackend(storedUrl, { remember: false });
+      return;
+    } catch (error) {
+      console.warn('Failed to auto-connect to backend', error);
+      backendBaseUrl = cleanBaseUrl(storedUrl);
+      isConnected = false;
+      updateConnectionStatus('error', 'Connection failed - using local data');
+      refreshConnectButton();
+    }
+  }
+
+  loadLocalData();
+  if (!isConnected && !backendBaseUrl) {
+    updateConnectionStatus('idle', 'Not connected');
+    refreshConnectButton();
+  }
+}
+
+function closeConnectionModal() {
+  if (!connectionModal) {
+    return;
+  }
+  connectionModal.classList.add('hidden');
+  connectionMessage.textContent = '';
+}
+
+function openConnectionModal() {
+  if (!connectionModal) {
+    return;
+  }
+  connectionForm.reset();
+  const stored = backendBaseUrl || localStorage.getItem('backend-url') || '';
+  if (stored) {
+    connectionHostInput.value = stored;
+  }
+  connectionMessage.textContent = '';
+  connectionModal.classList.remove('hidden');
+  connectionHostInput.focus();
 }
 
 function collectDuration() {
@@ -586,6 +760,54 @@ addGroupBtn.addEventListener('click', () => {
   }
 });
 
+if (connectBtn) {
+  connectBtn.addEventListener('click', () => {
+    openConnectionModal();
+  });
+}
+
+if (connectionCancelBtn) {
+  connectionCancelBtn.addEventListener('click', () => {
+    closeConnectionModal();
+  });
+}
+
+if (connectionModal) {
+  connectionModal.addEventListener('click', (event) => {
+    if (event.target === connectionModal) {
+      closeConnectionModal();
+    }
+  });
+}
+
+if (connectionForm) {
+  connectionForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const hostValue = connectionHostInput.value;
+    const portValue = connectionPortInput.value || '';
+    try {
+      const baseUrl = buildBaseUrl(hostValue, portValue);
+      connectionMessage.textContent = 'Connecting...';
+      await connectToBackend(baseUrl);
+      connectionMessage.textContent = '';
+      closeConnectionModal();
+      renderAll();
+    } catch (error) {
+      console.error('Connection attempt failed', error);
+      isConnected = false;
+      updateConnectionStatus('error', 'Connection failed - using local data');
+      refreshConnectButton();
+      connectionMessage.textContent = error && error.message ? error.message : 'Connection failed. Please verify the host and port.';
+    }
+  });
+}
+
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape' && connectionModal && !connectionModal.classList.contains('hidden')) {
+    closeConnectionModal();
+  }
+});
+
 function checkRenewal() {
   const now = Date.now();
   data.groups.forEach(group => {
@@ -602,14 +824,18 @@ function checkRenewal() {
 clearDataBtn.addEventListener('click', () => {
   if (confirm('Are you sure you want to clear ALL your To-Do data? This action cannot be undone.')) {
     localStorage.removeItem('todo-data');
-    // If you were using cookies, you would clear them here as well.
-    // Example: document.cookie.split(";").forEach(function(c) { document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/"); });
-    data = { standard: [], groups: [] }; // Reset in-memory data
-    renderAll(); // Re-render with empty data
+    data = { standard: [], groups: [] };
+    normaliseData();
+    renderAll();
+    saveData();
     alert('All data has been cleared.');
   }
 });
 
-loadData();
-renderAll();
-setInterval(checkRenewal, 60000); // check every minute
+async function initialiseApp() {
+  await attemptInitialConnection();
+  renderAll();
+  setInterval(checkRenewal, 60000); // check every minute
+}
+
+initialiseApp();
